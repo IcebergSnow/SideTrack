@@ -29,48 +29,26 @@ function renderRecommendations(recommendations) {
   const { seed, tracks, note } = recommendations;
   $("seed-title").textContent = seed.title;
   $("seed-artist").textContent = seed.artists.join(", ");
-  $("seed-image").src = seed.thumbnail;
   $("seed-link").href = seed.url;
   $("seed-link").setAttribute("aria-label", `Listen to ${seed.title} on YouTube (opens a new tab)`);
-  $("track-count").textContent = `${tracks.length} tracks`;
+  $("track-count").textContent = `(${tracks.length})`;
   $("recommendation-note").textContent = note;
   $("recommendation-note").hidden = !note;
-  for (const [index, track] of tracks.entries()) {
+  for (const track of tracks) {
     const li = document.createElement("li");
     const link = document.createElement("a");
-    link.className = "track-link";
     link.href = track.url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.setAttribute("aria-label", `${track.title} by ${track.artists.join(", ")} (opens YouTube in a new tab)`);
-    const number = document.createElement("span");
-    number.className = "track-number";
-    number.textContent = String(index + 1).padStart(2, "0");
-    const image = document.createElement("img");
-    image.className = "track-art";
-    image.src = track.thumbnail;
-    image.alt = "";
-    image.loading = "lazy";
-    image.width = 46;
-    image.height = 46;
-    const info = document.createElement("span");
-    info.className = "track-info";
-    const title = document.createElement("span");
-    title.className = "track-title";
-    title.textContent = track.title;
+    link.textContent = track.title;
     const artist = document.createElement("span");
     artist.className = "track-artist";
-    artist.textContent = track.artists.join(", ");
-    info.append(title, artist);
+    artist.textContent = ` — ${track.artists.join(", ")}`;
     const duration = document.createElement("span");
     duration.className = "track-duration";
-    duration.textContent = track.duration;
-    const arrow = document.createElement("span");
-    arrow.className = "track-arrow";
-    arrow.textContent = "↗";
-    arrow.setAttribute("aria-hidden", "true");
-    link.append(number, image, info, duration, arrow);
-    li.append(link);
+    duration.textContent = track.duration ? ` (${track.duration})` : "";
+    li.append(link, artist, duration);
     $("track-list").append(li);
   }
 }
@@ -80,25 +58,23 @@ function render() {
   const exporting = session?.export.status === "exporting";
   const generating = busy || session?.generating;
   $("generate-button").disabled = !session || generating || exporting;
-  $("example-button").disabled = !session || generating || exporting;
   $("song-url").disabled = generating || exporting;
   $("generate-label").textContent = generating ? "Finding tracks…" : "Generate";
   $("loading").hidden = !generating;
-  $("empty-state").hidden = generating || Boolean(recommendations);
   $("results").hidden = generating || !recommendations;
   renderRecommendations(recommendations);
   if (!session) return;
   const result = session.export;
   $("export-button").disabled = generating || !recommendations || ["authorizing", "exporting", "complete", "partial"].includes(result.status);
   $("export-label").textContent = ({ authorizing: "Awaiting Google…", exporting: `Exporting ${result.added}/${recommendations?.tracks.length || 0}…`, complete: "Exported ✓", partial: "Export incomplete" })[result.status] || "Export to YouTube";
-  $("export-help").textContent = session.oauth_ready ? "Save as a private playlist. Google sign-in comes next." : "Export isn't configured on this server yet. Recommendations are ready to explore.";
+  $("export-help").textContent = session.oauth_ready ? "Creates a private playlist after Google sign-in." : "Export isn't configured on this server yet.";
   $("export-status").hidden = result.status === "idle";
   $("export-status").classList.toggle("error", ["failed", "partial"].includes(result.status));
   $("export-message").textContent = exporting ? `Adding songs to your private playlist… ${result.added} of ${recommendations?.tracks.length || 0} confirmed.` : result.message;
   $("playlist-link").hidden = !result.playlist_url;
   if (result.playlist_url) {
     $("playlist-link").href = result.playlist_url;
-    $("playlist-link").textContent = result.status === "complete" ? "Open your YouTube playlist ↗" : "Open the playlist so far ↗";
+    $("playlist-link").textContent = result.status === "complete" ? "Open your YouTube playlist" : "Open the playlist so far";
   }
 }
 
@@ -116,11 +92,6 @@ function pollFailed(error) {
   showError(`${error.message} Reconnecting to check progress…`);
   pollTimer = setTimeout(() => refresh().then(() => showError("")).catch(pollFailed), 5000);
 }
-
-$("example-button").addEventListener("click", () => {
-  $("song-url").value = "https://www.youtube.com/watch?v=fJ9rUzIMcZQ";
-  $("song-url").focus();
-});
 
 $("generate-form").addEventListener("submit", async (event) => {
   event.preventDefault();
