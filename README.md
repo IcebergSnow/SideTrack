@@ -52,6 +52,14 @@ python scripts/check_recommendations.py --base-url https://YOUR-PROJECT.vercel.a
 
 For a failure, open the deployment's **Logs**, reproduce the request, and inspect `/api/recommend`. Check build logs for installation errors. If the homepage loads but recommendations fail, try another official music link and compare with a local run. YouTube may block, throttle, or change its unofficial endpoint; SideTrack displays an error instead of substituting sample tracks. Preview deployment protection may require signing in through the browser before testing.
 
+## Vercel Web Analytics
+
+The plain HTML frontend includes Vercel Web Analytics for visitor and page-view counts. It loads Vercel's same-origin script, so the existing Content Security Policy allows it without inline scripts or extra domains. No npm dependency or frontend build step is needed. Analytics is skipped on localhost.
+
+In your Vercel project, open **Analytics** and click **Enable** if it is not already enabled. Deploy the latest commit after enabling it, visit your production site, then check the Analytics dashboard. If Vercel shows framework-specific setup instructions, choose **HTML**; the integration is already in this repository. See [Vercel's setup guide](https://vercel.com/docs/analytics/quickstart).
+
+SideTrack adds no custom events or song metadata to analytics. Standard page-view information is handled by Vercel; see [Vercel's analytics privacy documentation](https://vercel.com/docs/analytics/privacy-policy). Your pasted song URL and downloaded playlist contents are not attached to analytics events.
+
 ## Import the downloaded playlist
 
 1. Generate recommendations, then choose **Download TXT** or **Download CSV**.
