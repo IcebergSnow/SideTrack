@@ -1,0 +1,6 @@
+fastapi==0.143.0
+uvicorn==0.54.0
+ytmusicapi==1.12.3
+google-auth-oauthlib==1.5.0
+google-api-python-client==2.201.0
+python-dotenv==1.2.4

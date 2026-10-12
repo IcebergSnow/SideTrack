@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="One song, a new direction. Find your next 20 songs and save them to a private YouTube playlist.">
+  <title>SideTrack — Follow the music</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="SideTrack home"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i></span>SideTrack<span class="brand-period">.</span></a>
+      <span class="header-note"><span class="status-dot"></span>A little musical detour</span>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="heading">
+        <p class="eyebrow">FOLLOW YOUR CURIOSITY</p>
+        <h1 id="heading">One good song<br><em>leads to another.</em></h1>
+        <p class="intro-copy">Start with a song you love. Find 20 more in its orbit.<br class="desktop-break"> Take the whole playlist with you to YouTube.</p>
+      </section>
+
+      <section class="generator" aria-label="Generate recommendations">
+        <form id="generate-form">
+          <label for="song-url">Your starting point</label>
+          <div class="input-row">
+            <span class="link-icon" aria-hidden="true">↗</span>
+            <input id="song-url" name="url" type="text" inputmode="url" autocomplete="off" spellcheck="false" required maxlength="2048" placeholder="Paste a YouTube or YouTube Music song link" aria-describedby="input-help">
+            <button id="generate-button" type="submit"><span id="generate-label">Generate</span><span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="input-meta"><p id="input-help">One music link. No sign-in needed to explore.</p><button class="text-button" id="example-button" type="button">Try a little Queen <span aria-hidden="true">↗</span></button></div>
+        </form>
+      </section>
+
+      <div id="error" class="notice error" role="alert" hidden></div>
+      <div id="loading" class="loading" role="status" hidden><span class="spinner" aria-hidden="true"></span><div><strong>Following the music…</strong><p>Finding related tracks and filtering out repeats.</p></div></div>
+
+      <section id="empty-state" class="empty-state" aria-label="How it works">
+        <div><span class="step-number">01</span><span>Start with a song</span></div>
+        <span class="step-line" aria-hidden="true"></span>
+        <div><span class="step-number">02</span><span>Find your next favorites</span></div>
+        <span class="step-line" aria-hidden="true"></span>
+        <div><span class="step-number">03</span><span>Save to YouTube</span></div>
+      </section>
+
+      <section id="results" class="results" aria-labelledby="results-title" hidden>
+        <aside class="seed-panel">
+          <p class="eyebrow">THE SONG THAT STARTED IT</p>
+          <a id="seed-link" class="seed-art" target="_blank" rel="noopener noreferrer"><img id="seed-image" alt="" width="320" height="180"><span class="art-link" aria-hidden="true">↗</span></a>
+          <h2 id="seed-title"></h2>
+          <p id="seed-artist"></p>
+          <div class="seed-caption"><span class="status-dot"></span>A new direction from here</div>
+        </aside>
+        <div class="track-panel">
+          <div class="results-header"><div><p class="eyebrow">YOUR NEXT LISTEN</p><h2 id="results-title" tabindex="-1">The detour</h2></div><span id="track-count" class="count-badge"></span></div>
+          <p id="recommendation-note" class="recommendation-note" hidden></p>
+          <ol id="track-list" class="track-list"></ol>
+          <div class="export-panel">
+            <div><strong>Keep the good stuff.</strong><p id="export-help">Save as a private playlist. Google sign-in comes next.</p></div>
+            <button id="export-button" type="button"><span id="export-label">Export to YouTube</span><span aria-hidden="true">↗</span></button>
+          </div>
+          <div id="export-status" class="notice" role="status" hidden><p id="export-message"></p><a id="playlist-link" class="playlist-link" target="_blank" rel="noopener noreferrer" hidden>Open your YouTube playlist ↗</a></div>
+        </div>
+      </section>
+      <p id="announcement" class="sr-only" aria-live="polite"></p>
+    </main>
+
+    <footer><span>Stay curious. Get sidetracked.</span><p>Experimental recommendations via the unofficial ytmusicapi.<br>Availability and results may vary. No audio is downloaded.</p></footer>
+  </div>
+</body>
+</html>
