@@ -1,7 +1,7 @@
 """Experimental, unauthenticated recommendations from YouTube Music."""
 
-from functools import partial
 import re
+import time
 import unicodedata
 from urllib.parse import parse_qs, urlparse
 
@@ -10,6 +10,8 @@ from ytmusicapi import YTMusic
 
 VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 TARGET = 20
+POOL_TARGET = 200
+MAX_HISTORY = 2000
 
 
 class RecommendationError(Exception):
@@ -79,6 +81,7 @@ def clean_track(raw: dict) -> dict | None:
     artists = [a["name"] for a in raw.get("artists", []) if isinstance(a, dict) and a.get("name")]
     if not title or not artists:
         return None
+    counterpart_id = (raw.get("counterpart") or {}).get("videoId")
     return {
         "video_id": video_id,
         "title": title,
@@ -86,18 +89,21 @@ def clean_track(raw: dict) -> dict | None:
         "duration": raw.get("length") or raw.get("duration") or "",
         "url": f"https://www.youtube.com/watch?v={video_id}",
         "thumbnail": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg",
+        "counterpart_id": counterpart_id if isinstance(counterpart_id, str) and VIDEO_ID.fullmatch(counterpart_id) else None,
     }
 
 
-def select_tracks(raw_tracks: list[dict], seed: dict, limit: int = TARGET) -> list[dict]:
-    excluded_ids = {seed["video_id"]}
-    seen_recordings = {recording_key(seed)}
-    # YouTube explicitly identifies audio/video counterparts; exclude the seed's too.
+def select_tracks(raw_tracks: list[dict], seed: dict, limit: int = TARGET, exclude: list[dict] | None = None) -> list[dict]:
+    history = [seed, *(exclude or [])]
+    excluded_ids = {track["video_id"] for track in history}
+    excluded_ids.update(track.get("counterpart_id") for track in history)
+    seen_recordings = {recording_key(track) for track in history}
+    # Honor known audio/video counterparts for the seed and earlier songs.
     for raw in raw_tracks:
         counterpart = raw.get("counterpart") or {}
-        if raw.get("videoId") == seed["video_id"]:
+        if raw.get("videoId") in excluded_ids:
             excluded_ids.add(counterpart.get("videoId"))
-        if counterpart.get("videoId") == seed["video_id"]:
+        if counterpart.get("videoId") and counterpart.get("videoId") in excluded_ids:
             excluded_ids.add(raw.get("videoId"))
     selected = []
     for raw in raw_tracks:
@@ -117,13 +123,26 @@ def select_tracks(raw_tracks: list[dict], seed: dict, limit: int = TARGET) -> li
     return selected
 
 
-def recommend(url: str) -> dict:
+def recommend(url: str, exclude: list[dict] | None = None) -> dict:
     video_id = extract_video_id(url)
     try:
         with requests.Session() as session:
-            session.request = partial(session.request, timeout=15)
+            request = session.request
+            deadline = time.monotonic() + 35
+            request_count = 0
+
+            def bounded_request(method, url, **kwargs):
+                nonlocal request_count
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or request_count >= 16:
+                    raise requests.Timeout("Recommendation request budget reached")
+                request_count += 1
+                kwargs["timeout"] = min(10, remaining / 2)
+                return request(method, url, **kwargs)
+
+            session.request = bounded_request
             ytm = YTMusic(requests_session=session)
-            playlist = ytm.get_watch_playlist(videoId=video_id, radio=True, limit=25)
+            playlist = ytm.get_watch_playlist(videoId=video_id, radio=True, limit=POOL_TARGET)
             raw_tracks = playlist.get("tracks") or []
             original = next((t for t in raw_tracks if t.get("videoId") == video_id), None)
             seed = clean_track(original) if original else None
@@ -131,22 +150,26 @@ def recommend(url: str) -> dict:
                 raise RecommendationError(
                     "YouTube Music couldn't recognize this as an available song. Try an official music video or a YouTube Music song link.", 422
                 )
-            tracks = select_tracks(raw_tracks, seed)
+            tracks = select_tracks(raw_tracks, seed, limit=POOL_TARGET, exclude=exclude)
             if len(tracks) < TARGET:
                 # A second radio varies the candidates without adding another algorithm.
                 try:
-                    extra = ytm.get_watch_playlist(videoId=video_id, radio=True, limit=25)
+                    extra = ytm.get_watch_playlist(videoId=video_id, radio=True, limit=POOL_TARGET)
                     raw_tracks.extend(extra.get("tracks") or [])
-                    tracks = select_tracks(raw_tracks, seed)
+                    tracks = select_tracks(raw_tracks, seed, limit=POOL_TARGET, exclude=exclude)
                 except Exception:
                     # Keep real recommendations from the first request if the refill fails.
-                    pass
+                    if not tracks:
+                        raise
             if not tracks:
+                if exclude:
+                    return {"seed": seed, "tracks": [], "exhausted": True, "note": "No more new recommendations found right now. Your previous pages are still available to download."}
                 raise RecommendationError("No related songs were available for this track. Try another music link.", 404)
             return {
                 "seed": seed,
                 "tracks": tracks,
-                "note": "" if len(tracks) == TARGET else f"YouTube Music returned {len(tracks)} unique recommendations. You can download this shorter playlist.",
+                "exhausted": False,
+                "note": "" if len(tracks) >= TARGET else f"YouTube Music returned {len(tracks)} new unique recommendations. You can download this shorter page or try Next for more.",
             }
     except RecommendationError:
         raise

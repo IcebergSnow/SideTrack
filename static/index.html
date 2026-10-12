@@ -29,14 +29,28 @@
     <section id="results" aria-labelledby="results-title" hidden>
       <div class="results-header">
         <h2 id="results-title" tabindex="-1">Recommendations <span id="track-count"></span></h2>
-        <div class="download-buttons">
-          <button id="download-txt" type="button">Download TXT</button>
-          <button id="download-csv" type="button">Download CSV</button>
-        </div>
       </div>
       <p>Based on <a id="seed-link" target="_blank" rel="noopener noreferrer"><span id="seed-title"></span></a> — <span id="seed-artist"></span></p>
+      <nav class="pagination" aria-label="Recommendation pages">
+        <button id="previous-page" type="button">Previous</button>
+        <span id="page-status" role="status"></span>
+        <button id="next-page" type="button">Next</button>
+      </nav>
+      <div class="download-buttons">
+        <label for="download-scope">Download</label>
+        <select id="download-scope">
+          <option value="current">Current page</option>
+          <option value="through">Everything through this page</option>
+        </select>
+        <div class="file-formats">
+          <button id="download-txt" type="button" aria-label="Download TXT">TXT</button>
+          <button id="download-csv" type="button" aria-label="Download CSV">CSV</button>
+        </div>
+      </div>
+      <p id="download-count" class="muted"></p>
       <p class="muted">Import the file with <a href="https://soundiiz.com/tutorial/import-text-to-youtube-music" target="_blank" rel="noopener noreferrer">Soundiiz</a> or <a href="https://www.tunemymusic.com/" target="_blank" rel="noopener noreferrer">TuneMyMusic</a>. Connect YouTube there and review the matched songs. Service limits or fees may apply.</p>
       <p id="recommendation-note" class="muted" hidden></p>
+      <p id="more-loading" role="status" hidden>Finding more songs… Your current page will stay available.</p>
       <ol id="track-list"></ol>
     </section>
     <p id="announcement" class="sr-only" aria-live="polite"></p>

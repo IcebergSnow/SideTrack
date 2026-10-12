@@ -11,7 +11,7 @@ web = importlib.import_module("sidetrack.app")
 def test_generate_is_independent_of_cookies_and_server_instance(monkeypatch):
     calls = []
 
-    def recommend(url):
+    def recommend(url, exclude):
         calls.append(url)
         return {"seed": {"video_id": url}, "tracks": [], "note": "test-only response"}
 
@@ -28,7 +28,7 @@ def test_generate_is_independent_of_cookies_and_server_instance(monkeypatch):
 
 @pytest.mark.parametrize("status", [404, 422, 502, 504])
 def test_recommendation_errors_reach_the_browser(monkeypatch, status):
-    def fail(url):
+    def fail(url, exclude):
         raise RecommendationError("Useful upstream failure message", status)
 
     monkeypatch.setattr(web, "recommend", fail)
@@ -40,7 +40,7 @@ def test_recommendation_errors_reach_the_browser(monkeypatch, status):
 
 @pytest.mark.parametrize("body", [{}, {"url": ""}, {"url": "x" * 2049}, {"url": None}])
 def test_invalid_request_body_is_rejected_before_upstream(monkeypatch, body):
-    def unexpected(url):
+    def unexpected(url, exclude):
         pytest.fail("Invalid requests must not call YouTube Music")
 
     monkeypatch.setattr(web, "recommend", unexpected)
@@ -61,7 +61,7 @@ def test_entrypoint_serves_frontend_without_auth_routes():
     from app import app
 
     with TestClient(app) as client:
-        for path in ["/", "/static/app.js", "/static/downloads.mjs", "/static/style.css"]:
+        for path in ["/", "/static/app.js", "/static/downloads.mjs", "/static/pages.mjs", "/static/style.css"]:
             response = client.get(path)
             assert response.status_code == 200
             assert "set-cookie" not in response.headers
@@ -70,3 +70,30 @@ def test_entrypoint_serves_frontend_without_auth_routes():
         assert client.get("/api/session").status_code == 404
         assert client.get("/oauth/callback").status_code == 404
         assert client.post("/api/export", json={}).status_code == 404
+
+
+def test_stateless_refill_passes_validated_history(monkeypatch):
+    seen = {"video_id": "fJ9rUzIMcZQ", "title": "Previously shown", "artists": ["Artist"], "counterpart_id": "kJQP7kiw5Fk"}
+    def refill(url, exclude):
+        assert exclude == [seen]
+        return {"seed": {}, "tracks": [], "exhausted": True}
+
+    monkeypatch.setattr(web, "recommend", refill)
+    with TestClient(web.create_app()) as client:
+        response = client.post("/api/recommend", json={"url": "https://youtu.be/hLQl3WQQoQ0", "exclude": [seen]})
+    assert response.status_code == 200
+    assert response.json()["exhausted"] is True
+
+
+@pytest.mark.parametrize("exclude", [
+    [{"video_id": "invalid", "title": "Song", "artists": ["Artist"]}],
+    [{"video_id": "fJ9rUzIMcZQ", "title": "Song", "artists": []}],
+    [{"video_id": "fJ9rUzIMcZQ", "title": "Song", "artists": ["Artist"], "counterpart_id": "invalid"}],
+    [{"video_id": "fJ9rUzIMcZQ", "title": "Song", "artists": ["Artist"]}] * 2001,
+])
+def test_invalid_history_is_rejected_before_upstream(monkeypatch, exclude):
+    monkeypatch.setattr(web, "recommend", lambda *args, **kwargs: pytest.fail("Invalid history called upstream"))
+    with TestClient(web.create_app()) as client:
+        response = client.post("/api/recommend", json={"url": "https://youtu.be/hLQl3WQQoQ0", "exclude": exclude})
+    assert response.status_code == 422
+    assert "history" in response.json()["detail"]

@@ -82,8 +82,8 @@ def test_refills_short_radio_and_never_fabricates_tracks(monkeypatch):
     monkeypatch.setattr(rec, "YTMusic", Radio)
     result = rec.recommend("https://youtu.be/v0000000000")
     assert len(result["tracks"]) == 2
-    assert "2 unique" in result["note"]
-    assert calls == [{"videoId": "v0000000000", "radio": True, "limit": 25}] * 2
+    assert "2 new unique" in result["note"]
+    assert calls == [{"videoId": "v0000000000", "radio": True, "limit": 200}] * 2
 
 
 @pytest.mark.parametrize("response,status", [
@@ -106,3 +106,103 @@ def test_real_failure_modes_are_reported(monkeypatch, response, status):
     with pytest.raises(rec.RecommendationError) as error:
         rec.recommend("https://youtu.be/v0000000000")
     assert error.value.status == status
+
+
+def test_excludes_prior_recordings_and_both_counterpart_directions():
+    seed = rec.clean_track(raw(0, "Seed"))
+    previous = [rec.clean_track(raw(1, "Earlier", counterpart=raw(2))), rec.clean_track(raw(3, "Other"))]
+    result = rec.select_tracks([
+        raw(1, "Changed metadata"), raw(2, "Audio counterpart"),
+        raw(4, "Earlier (Official Audio)"),
+        raw(5, "Reverse counterpart", counterpart=raw(3)),
+        raw(6, "Fresh"), raw(6, "Duplicate ID"),
+    ], seed, exclude=previous)
+    assert [track["video_id"] for track in result] == [raw(6)["videoId"]]
+
+
+def test_returns_a_pool_in_upstream_order_without_truncating_to_one_page(monkeypatch):
+    class Radio:
+        def __init__(self, **kwargs):
+            pass
+
+        def get_watch_playlist(self, **kwargs):
+            assert kwargs["limit"] == 200
+            return {"tracks": [raw(0, "Seed")] + [raw(i, f"Song {i}") for i in range(1, 247)]}
+
+    monkeypatch.setattr(rec, "YTMusic", Radio)
+    result = rec.recommend("https://youtu.be/v0000000000")
+    assert [track["video_id"] for track in result["tracks"]] == [raw(i)["videoId"] for i in range(1, 201)]
+    assert result["exhausted"] is False
+
+
+def test_exhaustion_is_a_successful_empty_refill_not_an_unsupported_seed(monkeypatch):
+    class Radio:
+        calls = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def get_watch_playlist(self, **kwargs):
+            Radio.calls += 1
+            return {"tracks": [raw(0, "Seed"), raw(1, "Already seen")]}
+
+    monkeypatch.setattr(rec, "YTMusic", Radio)
+    result = rec.recommend("https://youtu.be/v0000000000", exclude=[rec.clean_track(raw(1, "Already seen"))])
+    assert result["tracks"] == []
+    assert result["exhausted"] is True
+    assert Radio.calls == 2
+
+
+def test_failed_refill_does_not_claim_no_more_songs(monkeypatch):
+    class Radio:
+        calls = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def get_watch_playlist(self, **kwargs):
+            Radio.calls += 1
+            if Radio.calls == 2:
+                raise requests.Timeout()
+            return {"tracks": [raw(0, "Seed"), raw(1, "Already seen")]}
+
+    monkeypatch.setattr(rec, "YTMusic", Radio)
+    with pytest.raises(rec.RecommendationError) as error:
+        rec.recommend("https://youtu.be/v0000000000", exclude=[rec.clean_track(raw(1, "Already seen"))])
+    assert error.value.status == 504
+
+
+def test_partial_real_results_survive_a_failed_refill(monkeypatch):
+    class Radio:
+        calls = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def get_watch_playlist(self, **kwargs):
+            Radio.calls += 1
+            if Radio.calls == 2:
+                raise requests.Timeout()
+            return {"tracks": [raw(0, "Seed"), raw(1, "Fresh") ]}
+
+    monkeypatch.setattr(rec, "YTMusic", Radio)
+    result = rec.recommend("https://youtu.be/v0000000000")
+    assert len(result["tracks"]) == 1
+    assert result["exhausted"] is False
+
+
+def test_library_cannot_make_unbounded_continuation_requests(monkeypatch):
+    calls = []
+    monkeypatch.setattr(requests.Session, "request", lambda *args, **kwargs: calls.append(kwargs))
+
+    class Radio:
+        def __init__(self, requests_session):
+            for _ in range(100):
+                requests_session.get("https://music.youtube.com")
+
+    monkeypatch.setattr(rec, "YTMusic", Radio)
+    with pytest.raises(rec.RecommendationError) as error:
+        rec.recommend("https://youtu.be/v0000000000")
+    assert error.value.status == 504
+    assert len(calls) == 16
+    assert all(0 < call["timeout"] <= 10 for call in calls)

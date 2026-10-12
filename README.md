@@ -1,6 +1,6 @@
 # SideTrack
 
-One music link → Generate → Download TXT or CSV → import into your music library.
+One music link → Generate → browse pages of 20 → Download TXT or CSV → import into your music library.
 
 A small Python/FastAPI app with plain HTML, CSS, and JavaScript. Recommendations come from **experimental, unofficial `ytmusicapi`**. No database, accounts, Google credentials, cookies, audio downloads, or frontend build step. Each recommendation request is independent; the browser creates the download.
 
@@ -22,6 +22,10 @@ On Windows, create the environment with `py -3.12 -m venv .venv` and activate wi
 Open [http://localhost:8000](http://localhost:8000). No `.env` file is needed; `.env.example` documents this. Existing Google OAuth variables are no longer read.
 
 Try `https://www.youtube.com/watch?v=fJ9rUzIMcZQ`, then click **Generate**.
+
+SideTrack loads a pool of up to 200 unique songs and displays 20 per page. **Previous** and **Next** browse the saved pages without reshuffling. At the end of the pool, **Next** requests more songs and filters out everything already loaded. A short page stays unchanged when another pool arrives.
+
+Choose **Current page** or **Everything through this page** before downloading TXT/CSV. On page 3, the second option includes pages 1–3, not later pages already held in the browser. The number of songs in the download is shown below the controls. Refreshing or generating again clears the pages.
 
 ## Deploy on Vercel
 
@@ -62,7 +66,7 @@ SideTrack adds no custom events or song metadata to analytics. Standard page-vie
 
 ## Import the downloaded playlist
 
-1. Generate recommendations, then choose **Download TXT** or **Download CSV**.
+1. Generate recommendations and browse to a page. Choose **Current page** or **Everything through this page**, then click **TXT** or **CSV**.
 2. Open a transfer service such as [Soundiiz](https://soundiiz.com/tutorial/import-text-to-youtube-music) or [TuneMyMusic](https://www.tunemymusic.com/).
 3. Choose its file-import option and upload the downloaded file. For Soundiiz: **Import Playlist → From File**.
 4. Review the detected tracks, choose YouTube Music as the destination, connect your Google account there, and complete the transfer.
@@ -75,9 +79,12 @@ TXT has one `Artist - Title` entry per line. CSV has `title,artist,url` columns,
 ## Recommendation behavior and limitations
 
 - Accepts YouTube watch links, YouTube Music links, `youtu.be` links, and video-specific shorts/embed/live URL forms. Playlist-only links are rejected. A valid video URL does not guarantee that YouTube Music recognizes it as a song.
-- Calls `get_watch_playlist(videoId=..., radio=True, limit=25)` without authentication. The service may return more than 25 candidates.
+- Calls `get_watch_playlist(videoId=..., radio=True, limit=200)` without authentication. The library may make several underlying requests and return more than 200 raw candidates.
 - Removes the original video, known audio/video counterparts, duplicate video IDs, unavailable entries, and obvious duplicate recordings using normalized artist/title metadata. Packaging labels such as “Official Video” and “2011 Remaster” are ignored; live/acoustic/remix qualifiers are retained.
-- Keeps YouTube Music's ordering and selects up to 20 recommendations. If fewer remain, makes one additional radio request and filters again. Shorter usable lists are labeled; empty lists and unsupported songs produce errors.
+- Keeps YouTube Music's ordering and returns up to 200 unique recommendations per pool, displayed in pages of 20. If fewer than 20 remain after filtering, tries one additional radio request. Short pages are usable; an empty initial pool or unsupported song produces an error.
+- The browser sends earlier songs' IDs, titles, artists, and known counterpart IDs when requesting another pool. The stateless backend excludes these songs and their obvious duplicate recordings. Browsing back preserves each page; an export through page N contains exactly pages 1–N in their original order.
+- If two radio attempts find no unseen songs, **Next** stops at the last page with a message. An upstream failure keeps the previous pages and allows a retry. The app cannot promise endless unique recommendations.
+- Each pool request has a 16-HTTP-request cap, a 35-second budget checked before upstream requests, and connect/read timeouts of at most 10 seconds each. One browser run holds at most 2,000 songs; download them or generate again at that point. No server session or database is introduced.
 
 `ytmusicapi` is not a Google-supported API. YouTube changes can break its response parsing or unauthenticated access. Results vary by song, request, region, and IP. Private, deleted, age/region-restricted, podcast, or unrecognized uploads may not work. Duplicate detection is a metadata heuristic, not audio fingerprinting. Consult YouTube's applicable terms before broader use.
 
@@ -88,23 +95,27 @@ The app keeps results only in the current page's memory. Refreshing clears them;
 ```sh
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
-node --test tests/test_downloads.mjs
+node --test tests/test_downloads.mjs tests/test_pages.mjs
 ```
 
-Node.js 20+ is needed only for the download-format tests, not to run the app. Tests cover URL parsing, duplicate filtering, upstream failures, stateless API requests, input validation, frontend serving, removal of auth routes, and file formatting. Successful API fixtures exist **only in tests**; the running app always calls YouTube Music.
+Node.js 20+ is needed only for the frontend tests, not to run the app. Tests cover URL parsing, duplicate filtering across pools, upstream failures and exhaustion, request bounds, stateless API requests, history validation, frontend serving, page preservation, export boundaries, and file formatting. Successful API fixtures exist **only in tests**; the running app always calls YouTube Music.
 
 Run the real recommendation flow:
 
 ```sh
 python scripts/check_recommendations.py
 python scripts/check_recommendations.py 'https://music.youtube.com/watch?v=kJQP7kiw5Fk'
+python scripts/check_recommendations.py --refill
+python scripts/check_recommendations.py --base-url https://YOUR-PROJECT.vercel.app --refill
 ```
 
-The smoke test fails on upstream errors and checks that results exclude the seed and contain unique IDs/recording keys. It never substitutes sample data.
+The smoke test fails on upstream errors and checks that results exclude the seed and contain unique IDs/recording keys. `--refill` checks another pool against the full first pool for repeated IDs, recordings, and known counterparts. It never substitutes sample data.
 
-The original recommendation flow was tested live before the earlier Google export implementation. After switching to file downloads, live checks returned 20 unique recommendations for both Queen (`fJ9rUzIMcZQ`) and Luis Fonsi (`kJQP7kiw5Fk`). The stateless HTTP check also passed. Browser checks verified real generation, matching 20-track TXT/CSV downloads, invalid-link feedback, and desktop/mobile layouts. All 37 Python tests and 3 JavaScript tests passed.
+The original recommendation flow was tested live before the earlier Google export implementation. Later overlap tests used five repeated requests per song, including real requests to the deployed app. Larger local tests returned more than 200 usable songs for Queen (`fJ9rUzIMcZQ`) and Luis Fonsi (`kJQP7kiw5Fk`), motivating the pool-and-pages design. These are development observations, not guarantees for every song. The paging implementation passes 48 Python tests and 8 JavaScript tests.
 
-Google OAuth and official YouTube API writes have now been removed in favor of file downloads. Real third-party import and recommendations from a Vercel deployment still need to be verified after deployment; local checks cannot establish those results.
+Live pool/refill checks returned 200 initial songs for both inputs, then 2 new songs for Queen and 45 for Despacito without repeated IDs or recording keys. Browser checks covered 10 cached pages, additional pools, unchanged previous pages, a 20-song page download and a 60-song cumulative download in exact displayed order, plus recovery after the local server was stopped and restarted.
+
+Google OAuth and official YouTube API writes have been removed in favor of file downloads. A real third-party import still needs to be verified with your account. Always check the deployed recommendation flow after deployment; local checks cannot establish cloud availability.
 
 ## Files
 
