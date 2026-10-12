@@ -75,7 +75,7 @@ playlist-importer playlist.csv --name "My discoveries"
 
 Replace `playlist.csv` with the downloaded file's path, or rename the file and put it in the folder where you run the command. Quote paths containing spaces.
 
-Google sign-in happens locally for this option. Credentials are not uploaded to SideTrack or Vercel. The CLI returns a regular YouTube playlist link; availability in YouTube Music can differ. Its README explains API quotas, local token storage, and verification status. **A real-account Google import has not yet been verified during development.**
+Google sign-in happens locally for this option. Credentials are not uploaded to SideTrack or Vercel. The CLI returns a regular YouTube playlist link; availability in YouTube Music can differ. Its README explains API quotas, local token storage, and verification status. **A real-account import of 40 videos into a private playlist has been verified, including recovery from interrupted writes and the final video order.**
 
 ## Run on your own computer
 
