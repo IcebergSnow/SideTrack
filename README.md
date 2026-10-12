@@ -1,14 +1,94 @@
 # SideTrack
 
-One music link → Generate → browse pages of 20 → Download TXT or CSV → import into your music library.
+Find similar music from a single YouTube song link. Browse the recommendations, then download a list to import into your music library.
 
-A small Python/FastAPI app with plain HTML, CSS, and JavaScript. Recommendations come from **experimental, unofficial `ytmusicapi`**. No database, accounts, Google credentials, cookies, audio downloads, or frontend build step. Each recommendation request is independent; the browser creates the download.
+**[Open SideTrack →](https://side-track.vercel.app/)**
 
-## Run locally
+No installation or sign-in is needed to use the website. SideTrack uses experimental, unofficial `ytmusicapi` recommendations and does not download audio.
 
-Requires **Python 3.12** and an internet connection.
+[First use](#try-it-with-one-song) · [Downloads](#choose-what-to-download) · [Import to YouTube](#get-the-songs-into-youtube) · [Run locally](#run-on-your-own-computer) · [Deploy on Vercel](#deploy-your-own-copy-on-vercel) · [Troubleshooting](#troubleshooting)
+
+## Try it with one song
+
+1. Open [SideTrack](https://side-track.vercel.app/).
+2. Copy a link to **one song** from YouTube or YouTube Music and paste it into the URL field. You can try this example:
+
+   ```text
+   https://www.youtube.com/watch?v=fJ9rUzIMcZQ
+   ```
+
+3. Click **Generate** and wait for the recommendations to appear.
+4. Use **Previous** and **Next** to browse pages of up to 20 songs. Click a song title to open it on YouTube.
+5. Choose what to include using the **Download** menu, then click **CSV** or **TXT**.
+6. Find the file in your browser's downloads and use one of the [import options below](#get-the-songs-into-youtube).
+
+**Downloading a file does not create a playlist in your YouTube account.** That happens in a separate importer, where you grant Google access.
+
+Download the songs you want to keep **before refreshing the page or clicking Generate again**. Both clear the current recommendations.
+
+## Choose what to download
+
+### Which pages?
+
+| Download setting | What is included |
+| --- | --- |
+| **Current page** | Only the songs visible on that page. |
+| **Everything through this page** | All songs from page 1 through the page you are viewing, in order. |
+
+For example, on page 3, **Current page** contains 20 songs and **Everything through this page** contains 60, assuming all three pages are full. Later pages are not included. Check the song count shown under the download controls before saving.
+
+SideTrack loads up to 200 unique recommendations at a time. Moving between loaded pages keeps their songs unchanged. At the end, **Next** asks for more and filters out songs already loaded. A page can contain fewer than 20 songs, and new results are not guaranteed indefinitely.
+
+### CSV or TXT?
+
+| Format | Contents | Use it for |
+| --- | --- | --- |
+| **CSV** | Song title, artist, and YouTube URL in columns. | The companion CLI, supported file-import services, or a spreadsheet. |
+| **TXT** | One `Artist - Title` entry per line. | Supported text-import services or a readable song list. |
+
+**Choose CSV if you plan to use the SideTrack CLI importer.** Renaming a TXT file to `.csv` does not add the missing video links.
+
+## Get the songs into YouTube
+
+There are two separate import options. SideTrack itself does not handle Google sign-in or create playlists.
+
+### Option A: Use a transfer website
+
+This option lets you complete the import in your browser.
+
+1. Open [Soundiiz's import guide](https://soundiiz.com/tutorial/import-text-to-youtube-music) or [TuneMyMusic's file importer](https://www.tunemymusic.com/transfer/file-to-youtube-music).
+2. Choose file import and upload your downloaded CSV or TXT. In Soundiiz, use **Import Playlist → From File**.
+3. Review the detected songs, choose **YouTube Music** as the destination, and connect your Google account on that service.
+4. Complete the transfer, then check the resulting songs and playlist privacy setting in YouTube Music.
+
+The service may require an account, have transfer limits, or charge a fee. It may match by artist/title and select a different recording. SideTrack's YouTube URLs do not guarantee that a third-party service will use those exact videos. See [Soundiiz's CSV format guidance](https://support.soundiiz.com/hc/en-us/articles/360010006793-What-is-the-CSV-format-to-import-playlists-and-favorites).
+
+### Option B: Use the companion CLI on your computer
+
+[SideTrack CLI Playlist Importer](https://github.com/IcebergSnow/SideTrack_CLI_PlaylistImporter) is a separate command-line tool that reads SideTrack **CSV** files and uses their exact YouTube video IDs. It supports combining files, creating a private playlist, and resuming an interrupted import.
+
+Follow its [installation and Google setup guide](https://github.com/IcebergSnow/SideTrack_CLI_PlaylistImporter#readme) first. After installing it and configuring your own Google Desktop OAuth client, you can run:
 
 ```sh
+playlist-importer playlist.csv --name "My discoveries"
+```
+
+Replace `playlist.csv` with the downloaded file's path, or rename the file and put it in the folder where you run the command. Quote paths containing spaces.
+
+Google sign-in happens locally for this option. Credentials are not uploaded to SideTrack or Vercel. The CLI returns a regular YouTube playlist link; availability in YouTube Music can differ. Its README explains API quotas, local token storage, and verification status. **A real-account Google import has not yet been verified during development.**
+
+## Run on your own computer
+
+You can skip this section if you only want to use the [hosted website](https://side-track.vercel.app/).
+
+You need **Python 3.12**, [Git](https://git-scm.com/downloads), and an internet connection. Check Python with `python3.12 --version` on macOS/Linux or `py -3.12 --version` on Windows. Install Python 3.12 if that command is unavailable.
+
+The commands below download SideTrack into your home folder and create a separate Python environment called `.venv`. Already cloned it? Open the existing project folder and start at the `venv` command.
+
+### macOS or Linux — Terminal
+
+```sh
+cd ~
 git clone https://github.com/IcebergSnow/SideTrack.git
 cd SideTrack
 python3.12 -m venv .venv
@@ -17,80 +97,116 @@ python -m pip install -r requirements.txt
 python -m sidetrack
 ```
 
-On Windows, create the environment with `py -3.12 -m venv .venv` and activate with `.venv\Scripts\activate`.
+### Windows — Command Prompt
 
-Open [http://localhost:8000](http://localhost:8000). No `.env` file is needed; `.env.example` documents this. Existing Google OAuth variables are no longer read.
+Open **Command Prompt** from the Start menu and run:
 
-Try `https://www.youtube.com/watch?v=fJ9rUzIMcZQ`, then click **Generate**.
+```bat
+cd /d "%USERPROFILE%"
+git clone https://github.com/IcebergSnow/SideTrack.git
+cd SideTrack
+py -3.12 -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install -r requirements.txt
+python -m sidetrack
+```
 
-SideTrack loads a pool of up to 200 unique songs and displays 20 per page. **Previous** and **Next** browse the saved pages without reshuffling. At the end of the pool, **Next** requests more songs and filters out everything already loaded. A short page stays unchanged when another pool arrives.
+### Open the app
 
-Choose **Current page** or **Everything through this page** before downloading TXT/CSV. On page 3, the second option includes pages 1–3, not later pages already held in the browser. The number of songs in the download is shown below the controls. Refreshing or generating again clears the pages.
+Keep the terminal running and open **[http://localhost:8000](http://localhost:8000)** in your browser. You should see SideTrack's URL field and **Generate** button. Try the example song from [First use](#try-it-with-one-song).
 
-## Deploy on Vercel
+**No `.env` file, API key, Google credentials, Node.js, or frontend build is required to run SideTrack.** [`.env.example`](.env.example) documents this. Google setup is only needed if you separately choose the CLI importer.
 
-1. Sign in to [Vercel](https://vercel.com/new) with GitHub.
-2. Choose **Add New → Project**, find **IcebergSnow/SideTrack**, and click **Import**. If it is missing, adjust the Vercel GitHub integration's repository access.
-3. Use these settings:
+Press **Ctrl+C** in the terminal to stop the local server. To start again later, open the project folder, activate `.venv` with the command for your operating system, and run `python -m sidetrack`.
+
+## Deploy your own copy on Vercel
+
+Use this if you want your own public URL. You need GitHub and Vercel accounts; you do not need to configure Google OAuth for the SideTrack website.
+
+1. **Fork this repository** into your GitHub account using GitHub's **Fork** button. A fork is your own copy that Vercel can deploy.
+2. Sign in to [Vercel](https://vercel.com/new) with GitHub. Choose **Add New → Project** and import your SideTrack fork. If it is missing, grant the Vercel GitHub integration access to that repository.
+3. Check these settings:
 
    | Setting | Value |
    | --- | --- |
-   | Framework Preset | **FastAPI** (auto-detected; select it if necessary) |
+   | Framework Preset | **FastAPI** |
    | Root Directory | Repository root (`./`) |
    | Build Command | Leave the override off |
    | Output Directory | Leave the override off |
    | Install Command | Leave the override off |
    | Environment Variables | None |
 
-4. Click **Deploy**. Vercel installs `requirements.txt` and loads the root `app.py`. `.python-version` selects Python 3.12; `vercel.json` sets a 60-second function limit. Do not enter a Uvicorn start command or `dist` output directory.
-5. When deployment is ready, open its `.vercel.app` URL. Paste the example song, click **Generate**, and confirm that the songs appear. Download TXT and CSV and check their contents.
-6. Subsequent pushes to the connected production branch (`main` for this repository) redeploy automatically.
+4. Click **Deploy** and wait for it to finish. The repository includes the Python version, dependencies, and FastAPI entrypoint Vercel needs. You do not need to enter a server start command or a `dist` folder.
+5. Open the production `.vercel.app` URL. Generate recommendations from the example song, browse to another page, and download a CSV. A successful build alone does not confirm that recommendations work from Vercel.
+6. Future pushes to the connected production branch, usually `main`, redeploy your copy.
 
-Vercel setup follows its [FastAPI guide](https://vercel.com/docs/frameworks/backend/fastapi) and [Python runtime documentation](https://vercel.com/docs/functions/runtimes/python). There is no session store, OAuth callback, or background export task to configure.
+Deployment follows Vercel's [FastAPI guide](https://vercel.com/docs/frameworks/backend/fastapi) and [Python runtime documentation](https://vercel.com/docs/functions/runtimes/python). Hosting usage is subject to your Vercel plan's limits.
 
-**Verify recommendations on the deployed URL.** Working on a laptop does not guarantee that YouTube Music will accept traffic from a hosting provider's IP. A successful Vercel build only verifies deployment, not the upstream music service. To check the deployed API from a terminal:
+If the page loads but recommendations fail, open the Vercel deployment's **Logs** and reproduce the request. YouTube Music can block, throttle, or change the unofficial endpoint. A song working locally does not guarantee it will work from a hosting provider's IP address.
 
-```sh
-python scripts/check_recommendations.py --base-url https://YOUR-PROJECT.vercel.app
-```
+### Optional: enable visitor analytics
 
-For a failure, open the deployment's **Logs**, reproduce the request, and inspect `/api/recommend`. Check build logs for installation errors. If the homepage loads but recommendations fail, try another official music link and compare with a local run. YouTube may block, throttle, or change its unofficial endpoint; SideTrack displays an error instead of substituting sample tracks. Preview deployment protection may require signing in through the browser before testing.
+The repository already includes Vercel's plain-HTML analytics integration.
 
-## Vercel Web Analytics
+1. Open your Vercel project's **Analytics** tab and click **Enable** if needed.
+2. Redeploy the project, visit its production URL, then check the dashboard.
+3. If Vercel shows framework setup instructions, choose **HTML**. You do not need to add a React component or npm package.
 
-The plain HTML frontend includes Vercel Web Analytics for visitor and page-view counts. It loads Vercel's same-origin script, so the existing Content Security Policy allows it without inline scripts or extra domains. No npm dependency or frontend build step is needed. Analytics is skipped on localhost.
+See [Vercel's analytics setup guide](https://vercel.com/docs/analytics/quickstart). Analytics is skipped on localhost, and blockers can prevent visits from appearing. SideTrack adds no custom song or download events; [privacy details are below](#privacy-and-limitations).
 
-In your Vercel project, open **Analytics** and click **Enable** if it is not already enabled. Deploy the latest commit after enabling it, visit your production site, then check the Analytics dashboard. If Vercel shows framework-specific setup instructions, choose **HTML**; the integration is already in this repository. See [Vercel's setup guide](https://vercel.com/docs/analytics/quickstart).
+## Troubleshooting
 
-SideTrack adds no custom events or song metadata to analytics. Standard page-view information is handled by Vercel; see [Vercel's analytics privacy documentation](https://vercel.com/docs/analytics/privacy-policy). Your pasted song URL and downloaded playlist contents are not attached to analytics events.
+| What happens | What to try |
+| --- | --- |
+| The URL is rejected | Use a link to one YouTube or YouTube Music song. Playlist-only links are not supported. |
+| The song is unsupported or no recommendations appear | Try an official music video or the same song's YouTube Music link. Private, deleted, restricted, or unrecognized uploads may not work. |
+| Generating takes too long or fails | Check your connection and try again. If it keeps happening, try another song. The unofficial YouTube Music endpoint may be unavailable or changed. |
+| **Next** fails while loading more songs | Existing pages remain available to download. Click **Next** to retry. Avoid refreshing if you want to keep those pages. |
+| A page has fewer than 20 songs, or **Next** stops finding more | YouTube Music did not return enough new songs after filtering. You can still download the available pages. |
+| My download has fewer songs than expected | Check **Current page** versus **Everything through this page**, your current page number, and the displayed download count. Short pages also reduce the total. |
+| Recommendations disappeared | Refreshing or generating again clears them. SideTrack does not save past sessions; download a file to keep a list. |
+| I downloaded a file but there is no YouTube playlist | Follow one of the [import options](#get-the-songs-into-youtube). Downloading alone does not write to your Google account. |
+| The local page will not open | Keep `python -m sidetrack` running and use `http://localhost:8000`, not an HTML file opened directly from disk. Check the terminal for errors. |
+| `python3.12`, `py -3.12`, or `git` is not found | Install the missing prerequisite, reopen the terminal, and check its version. |
+| Python says `No module named sidetrack` or a dependency is missing | Open the SideTrack project folder, activate `.venv`, and run `python -m pip install -r requirements.txt` before starting it. |
+| PowerShell blocks environment activation | Use **Command Prompt** with the Windows instructions, or run `.\.venv\Scripts\python.exe -m sidetrack` from the project folder after installing the dependencies into that environment. |
+| Port 8000 is already in use | Stop the other local server if it is yours, or run `python -m uvicorn sidetrack.app:app --host 127.0.0.1 --port 8001` and open `http://localhost:8001`. |
+| Vercel's build fails | Check the build logs, select **FastAPI**, and use the repository root. Leave build/output/install overrides off. |
+| A Vercel link asks me to sign in | You may be using a protected preview deployment. Use your public production URL when sharing the app, or check the project's deployment-protection settings. |
+| The importer picked a different recording | Transfer services may match by title/artist. Review their matches, or use the companion CLI with CSV to submit the exact video IDs. |
 
-## Import the downloaded playlist
+## Privacy and limitations
 
-1. Generate recommendations and browse to a page. Choose **Current page** or **Everything through this page**, then click **TXT** or **CSV**.
-2. Open a transfer service such as [Soundiiz](https://soundiiz.com/tutorial/import-text-to-youtube-music) or [TuneMyMusic](https://www.tunemymusic.com/).
-3. Choose its file-import option and upload the downloaded file. For Soundiiz: **Import Playlist → From File**.
-4. Review the detected tracks, choose YouTube Music as the destination, connect your Google account there, and complete the transfer.
-5. Open the resulting playlist in YouTube Music and check its songs and privacy setting.
+- Recommendations are **experimental and unofficial**. `ytmusicapi` is not a Google-supported API, and YouTube changes can break it. Repeating the same input may produce a different set or order of songs.
+- SideTrack removes the original song, repeated video IDs, known audio/video counterparts, and obvious duplicate recordings. This uses song metadata, not audio analysis; some alternate versions may remain.
+- Recommendations live in the current browser tab's memory. The app has no accounts, database, or saved playlist history. A session holds at most 2,000 songs; download them before starting over.
+- SideTrack sends the seed video ID to YouTube Music. When loading more songs, the browser sends the earlier songs' IDs and metadata to SideTrack so it can filter repeats. Download files are generated in the browser.
+- When enabled on Vercel, Web Analytics records standard visit/page-view information. SideTrack does not attach your pasted song URL or playlist contents to analytics events. See [Vercel's analytics privacy information](https://vercel.com/docs/analytics/privacy-policy). Your hosting provider may also retain operational logs.
+- SideTrack never asks for Google credentials. An importer handles Google authorization separately and has its own permissions, limits, and privacy behavior. No audio is downloaded by SideTrack.
 
-SideTrack never receives the transfer service's Google credentials or tokens. Importing is a separate step on that service; its account requirements, permissions, fees, and limits apply. SideTrack does not create a YouTube playlist or return a playlist URL itself.
+## For developers
 
-TXT has one `Artist - Title` entry per line. CSV has `title,artist,url` columns, following [Soundiiz's documented format](https://support.soundiiz.com/hc/en-us/articles/360010006793-What-is-the-CSV-format-to-import-playlists-and-favorites). URLs are included for reference, but importers can match by artist/title and choose different recordings. Exact YouTube video IDs and private visibility are not guaranteed by file import. CSV escapes quotes and neutralizes formula-like metadata; this can add a leading apostrophe to unusual titles or artist names.
+<details>
+<summary>Architecture and recommendation behavior</summary>
 
-## Recommendation behavior and limitations
+The app uses Python/FastAPI and plain HTML, CSS, and JavaScript. There is no frontend build step or server session store. Each recommendation request is independent.
 
-- Accepts YouTube watch links, YouTube Music links, `youtu.be` links, and video-specific shorts/embed/live URL forms. Playlist-only links are rejected. A valid video URL does not guarantee that YouTube Music recognizes it as a song.
-- Calls `get_watch_playlist(videoId=..., radio=True, limit=200)` without authentication. The library may make several underlying requests and return more than 200 raw candidates.
-- Removes the original video, known audio/video counterparts, duplicate video IDs, unavailable entries, and obvious duplicate recordings using normalized artist/title metadata. Packaging labels such as “Official Video” and “2011 Remaster” are ignored; live/acoustic/remix qualifiers are retained.
-- Keeps YouTube Music's ordering and returns up to 200 unique recommendations per pool, displayed in pages of 20. If fewer than 20 remain after filtering, tries one additional radio request. Short pages are usable; an empty initial pool or unsupported song produces an error.
-- The browser sends earlier songs' IDs, titles, artists, and known counterpart IDs when requesting another pool. The stateless backend excludes these songs and their obvious duplicate recordings. Browsing back preserves each page; an export through page N contains exactly pages 1–N in their original order.
-- If two radio attempts find no unseen songs, **Next** stops at the last page with a message. An upstream failure keeps the previous pages and allows a retry. The app cannot promise endless unique recommendations.
-- Each pool request has a 16-HTTP-request cap, a 35-second budget checked before upstream requests, and connect/read timeouts of at most 10 seconds each. One browser run holds at most 2,000 songs; download them or generate again at that point. No server session or database is introduced.
+The backend calls `get_watch_playlist(videoId=..., radio=True, limit=200)`. That limit is a target used by `ytmusicapi`; it may make several underlying requests and return more raw candidates. SideTrack filters them and returns up to 200 unique tracks, displayed in pages of 20. If fewer than 20 new tracks remain, it tries one additional radio request.
 
-`ytmusicapi` is not a Google-supported API. YouTube changes can break its response parsing or unauthenticated access. Results vary by song, request, region, and IP. Private, deleted, age/region-restricted, podcast, or unrecognized uploads may not work. Duplicate detection is a metadata heuristic, not audio fingerprinting. Consult YouTube's applicable terms before broader use.
+Deduplication uses video IDs, known audio/video counterparts, and normalized artist/title keys. It ignores packaging labels such as “Official Video” or “2011 Remaster” while retaining live/acoustic/remix qualifiers. Later pools exclude all previously loaded tracks. Old pages, including short ones, stay unchanged when a new pool arrives.
 
-The app keeps results only in the current page's memory. Refreshing clears them; download a file to keep them. No application database or persistent token storage is used. The server sends the seed video ID to YouTube Music. Your hosting provider may retain operational logs. The public recommendation endpoint has no application-level rate limiting; use Vercel's access controls or firewall if traffic becomes an issue.
+Each pool request has a 16-HTTP-request cap, a 35-second budget checked before upstream requests, and connect/read timeouts of at most 10 seconds each. The browser limits a run to 2,000 tracks. `vercel.json` sets a 60-second function limit; root `app.py` exposes the FastAPI app and `.python-version` selects Python 3.12.
 
-## Verify
+The public recommendation endpoint has no application-level rate limiting. For a public deployment, use your hosting provider's access controls or firewall if traffic becomes an issue. Review YouTube's applicable terms before broader use.
+
+CSV downloads contain `title,artist,url`; TXT uses one `Artist - Title` per line. CSV escaping also neutralizes formula-like metadata, so unusual titles/artists can gain a leading apostrophe when opened as a spreadsheet.
+
+</details>
+
+<details>
+<summary>Tests and live recommendation checks</summary>
+
+From the repository folder in an activated environment:
 
 ```sh
 python -m pip install -r requirements-dev.txt
@@ -98,33 +214,46 @@ python -m pytest -q
 node --test tests/test_downloads.mjs tests/test_pages.mjs
 ```
 
-Node.js 20+ is needed only for the frontend tests, not to run the app. Tests cover URL parsing, duplicate filtering across pools, upstream failures and exhaustion, request bounds, stateless API requests, history validation, frontend serving, page preservation, export boundaries, and file formatting. Successful API fixtures exist **only in tests**; the running app always calls YouTube Music.
+Node.js 20+ is only needed for the JavaScript tests. Tests cover input validation, filtering across pools, upstream failures, page preservation, download boundaries, and file formatting. Successful API fixtures are confined to tests; the running app never substitutes sample recommendations for a failed request.
 
-Run the real recommendation flow:
+To check real recommendations from your machine:
 
 ```sh
 python scripts/check_recommendations.py
-python scripts/check_recommendations.py 'https://music.youtube.com/watch?v=kJQP7kiw5Fk'
 python scripts/check_recommendations.py --refill
+```
+
+To check a deployed instance, replace the example hostname with its public production URL:
+
+```sh
 python scripts/check_recommendations.py --base-url https://YOUR-PROJECT.vercel.app --refill
 ```
 
-The smoke test fails on upstream errors and checks that results exclude the seed and contain unique IDs/recording keys. `--refill` checks another pool against the full first pool for repeated IDs, recordings, and known counterparts. It never substitutes sample data.
+These commands contact YouTube Music. `--refill` requests a second pool and checks it against the first for repeated IDs, recording keys, and known counterparts. Errors fail the check instead of returning fake songs.
 
-The original recommendation flow was tested live before the earlier Google export implementation. Later overlap tests used five repeated requests per song, including real requests to the deployed app. Larger local tests returned more than 200 usable songs for Queen (`fJ9rUzIMcZQ`) and Luis Fonsi (`kJQP7kiw5Fk`), motivating the pool-and-pages design. These are development observations, not guarantees for every song. The paging implementation passes 48 Python tests and 8 JavaScript tests.
+The paging implementation previously passed 48 Python tests and 8 JavaScript tests. Real local and Vercel checks exercised recommendations and refills; browser checks covered saved pages, a 20-song download, a 60-song cumulative download, and retry recovery. These observations do not guarantee availability for every song or hosting IP. A real third-party account import remains unverified; see the companion CLI's README for its separate verification status.
 
-Live pool/refill checks returned 200 initial songs for both inputs, then 2 new songs for Queen and 45 for Despacito without repeated IDs or recording keys. Browser checks covered 10 cached pages, additional pools, unchanged previous pages, a 20-song page download and a 60-song cumulative download in exact displayed order, plus recovery after the local server was stopped and restarted.
+</details>
 
-Google OAuth and official YouTube API writes have been removed in favor of file downloads. A real third-party import still needs to be verified with your account. Always check the deployed recommendation flow after deployment; local checks cannot establish cloud availability.
+<details>
+<summary>Project files and updating a local copy</summary>
 
-## Files
+| File or folder | Purpose |
+| --- | --- |
+| `app.py` | Vercel entrypoint |
+| `vercel.json` / `.python-version` | Hosting and Python version settings |
+| `sidetrack/app.py` | API endpoints and frontend routes |
+| `sidetrack/recommendations.py` | URL parsing, YouTube Music requests, and filtering |
+| `static/` | Plain HTML/CSS/JS, pagination, and download formatting |
+| `scripts/check_recommendations.py` | Live local/deployed API check |
+| `tests/` | Python and JavaScript tests |
 
-```text
-app.py                           Vercel entrypoint
-vercel.json                      FastAPI deployment settings
-sidetrack/app.py                 Stateless API and frontend routes
-sidetrack/recommendations.py     URL parsing, live ytmusicapi calls, filtering
-static/                         Barebones HTML/CSS/JS and download formatting
-scripts/check_recommendations.py Live local or deployed API smoke test
-tests/                          Isolated Python and JavaScript tests
+To update a Git checkout, stop the local server, open the repository folder, activate `.venv`, and run:
+
+```sh
+git pull --ff-only
+python -m pip install -r requirements.txt
+python -m sidetrack
 ```
+
+</details>
