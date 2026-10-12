@@ -146,7 +146,7 @@ def recommend(url: str) -> dict:
             return {
                 "seed": seed,
                 "tracks": tracks,
-                "note": "" if len(tracks) == TARGET else f"YouTube Music returned {len(tracks)} unique recommendations. You can export this shorter playlist.",
+                "note": "" if len(tracks) == TARGET else f"YouTube Music returned {len(tracks)} unique recommendations. You can download this shorter playlist.",
             }
     except RecommendationError:
         raise

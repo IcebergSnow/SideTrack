@@ -5,17 +5,27 @@ import json
 import sys
 from pathlib import Path
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sidetrack.recommendations import RecommendationError, recommend, recording_key
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("url", nargs="?", default="https://www.youtube.com/watch?v=fJ9rUzIMcZQ")
+parser.add_argument("--base-url", help="Test a deployed SideTrack URL instead of calling the recommendation module locally")
 args = parser.parse_args()
 try:
-    result = recommend(args.url)
+    if args.base_url:
+        response = requests.post(args.base_url.rstrip("/") + "/api/recommend", json={"url": args.url}, timeout=70)
+        response.raise_for_status()
+        result = response.json()
+    else:
+        result = recommend(args.url)
 except RecommendationError as exc:
     raise SystemExit(f"LIVE CHECK FAILED ({exc.status}): {exc}")
+except (requests.RequestException, ValueError) as exc:
+    raise SystemExit(f"LIVE HTTP CHECK FAILED: {exc}")
 ids = [track["video_id"] for track in result["tracks"]]
 keys = [recording_key(track) for track in result["tracks"]]
 assert result["seed"]["video_id"] not in ids

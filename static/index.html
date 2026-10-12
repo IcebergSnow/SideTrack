@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Generate similar songs from a YouTube link and export a private playlist.">
+  <meta name="description" content="Find similar songs from a YouTube link and download a playlist to import into your music library.">
   <title>SideTrack</title>
   <link rel="stylesheet" href="/static/style.css">
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js" type="module"></script>
 </head>
 <body>
   <main>
     <h1>SideTrack</h1>
-    <p>Find similar songs and save them to a private YouTube playlist.</p>
+    <p>Find similar songs. Download a playlist to import into your music library.</p>
 
     <form id="generate-form">
       <label for="song-url">YouTube or YouTube Music song URL</label>
@@ -19,7 +19,7 @@
         <input id="song-url" name="url" type="text" inputmode="url" autocomplete="off" spellcheck="false" required maxlength="2048" placeholder="https://www.youtube.com/watch?v=…" aria-describedby="input-help">
         <button id="generate-button" type="submit"><span id="generate-label">Generate</span></button>
       </div>
-      <p id="input-help" class="muted">No login needed until export.</p>
+      <p id="input-help" class="muted">No login needed.</p>
     </form>
 
     <p id="error" class="error" role="alert" hidden></p>
@@ -28,14 +28,13 @@
     <section id="results" aria-labelledby="results-title" hidden>
       <div class="results-header">
         <h2 id="results-title" tabindex="-1">Recommendations <span id="track-count"></span></h2>
-        <button id="export-button" type="button"><span id="export-label">Export to YouTube</span></button>
+        <div class="download-buttons">
+          <button id="download-txt" type="button">Download TXT</button>
+          <button id="download-csv" type="button">Download CSV</button>
+        </div>
       </div>
       <p>Based on <a id="seed-link" target="_blank" rel="noopener noreferrer"><span id="seed-title"></span></a> — <span id="seed-artist"></span></p>
-      <p id="export-help" class="muted">Creates a private playlist after Google sign-in.</p>
-      <div id="export-status" role="status" hidden>
-        <p id="export-message"></p>
-        <a id="playlist-link" target="_blank" rel="noopener noreferrer" hidden>Open your YouTube playlist</a>
-      </div>
+      <p class="muted">Import the file with <a href="https://soundiiz.com/tutorial/import-text-to-youtube-music" target="_blank" rel="noopener noreferrer">Soundiiz</a> or <a href="https://www.tunemymusic.com/" target="_blank" rel="noopener noreferrer">TuneMyMusic</a>. Connect YouTube there and review the matched songs. Service limits or fees may apply.</p>
       <p id="recommendation-note" class="muted" hidden></p>
       <ol id="track-list"></ol>
     </section>

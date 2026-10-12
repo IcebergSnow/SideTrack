@@ -49,6 +49,7 @@ a { color: #1457a5; text-underline-offset: 2px; }
 .error { color: #a52020; }
 #results { margin-top: 28px; }
 .results-header { justify-content: space-between; flex-wrap: wrap; }
+.download-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 #track-count { color: #666; font-weight: normal; }
 #track-list { padding-left: 24px; }
 #track-list li { padding: 5px 0; overflow-wrap: anywhere; }
